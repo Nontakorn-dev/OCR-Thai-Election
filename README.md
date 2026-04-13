@@ -370,4 +370,4 @@ This hybrid approach reduces failures from OCR table misalignment, broken party 
 
 ## License
 
-No license file is currently included in this repository. Add a license before publishing the project publicly.
+This project is licensed under the MIT License. See `LICENSE` for details.
