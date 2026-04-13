@@ -1,0 +1,18 @@
+.DS_Store
+.ipynb_checkpoints/
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+
+# Generated competition artifacts
+raw_outputs/
+merged_ocr/
+vote_extraction/
+parsed_outputs/
+validation/
+checkpoint.json
+submission_filled.csv
+submission_final.csv
+*.log
