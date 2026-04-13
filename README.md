@@ -3,14 +3,20 @@
 <h3 align="center">OCR and vote-count extraction pipeline for scanned Thai election result documents</h3>
 
 <p align="center">
-  Built for <strong>Super AI Engineer Season 6</strong> OCR competition on Thai MP election result documents, extracting structured vote counts from scanned Form <strong>สส.6/1</strong> pages.
+  Practical notes, prompt patterns, and post-processing tricks for extracting structured vote counts from scanned Thai Form <strong>สส.6/1</strong> pages.
+</p>
+
+<p align="center">
+  <strong>Normalized Levenshtein Distance: 0.1460</strong><br />
+  <strong>Accuracy Proxy: 85.40%</strong><br />
+  <sub>Calculated as 1 - normalized Levenshtein distance</sub>
 </p>
 
 ---
 
 ## Overview
 
-This project extracts structured voting data from scanned Thai election result documents for the **2026 Thai general election**.
+This project shares an OCR pipeline for extracting structured voting data from scanned Thai election result documents for the **2026 Thai general election**.
 
 Given PNG scans of official election documents, the pipeline is designed to:
 
@@ -19,23 +25,26 @@ Given PNG scans of official election documents, the pipeline is designed to:
 3. Locate the correct voting-table row for each party or candidate entry
 4. Extract the corresponding vote count
 5. Normalize Thai numerals into Arabic digits `0-9`
-6. Export a competition-ready CSV containing only `id` and `votes`
+6. Export a clean CSV containing only `id` and `votes`
 
-The party names are already pre-filled in the public submission template. The official prediction target is the vote count for each `id`.
+The party names are already pre-filled in the reference template. The prediction target is the vote count for each `id`.
 
 ---
 
-## Competition
+## Result
 
-**[Super AI Engineer Season 6] การแข่งขัน OCR เอกสารผลเลือกตั้ง สส. 2569**
+| Metric | Value | Interpretation |
+| --- | ---: | --- |
+| Normalized Levenshtein Distance | `0.1460` | Lower is better |
+| Accuracy Proxy | `85.40%` | `1 - 0.1460` |
 
-The challenge focuses on extracting vote counts from scanned Thai election forms. It is a **test-set-only OCR competition**:
+The accuracy value is a readable proxy derived from normalized Levenshtein distance. The original score is still reported because edit distance is the more precise metric for this OCR-style task.
 
-- No training data is provided
-- Competitors are expected to use existing OCR tools, Vision LLMs, or APIs
-- The main work is prompt engineering, OCR post-processing, validation, and pipeline design
+---
 
-### Dataset Summary
+## Data Snapshot
+
+This pipeline was designed for a test-set-only OCR task on Thai election forms:
 
 | Item | Count |
 | --- | ---: |
@@ -44,15 +53,42 @@ The challenge focuses on extracting vote counts from scanned Thai election forms
 | Submission rows | 10,053 |
 | Public template | `submission_template_v3.csv` |
 
-### Important Submission Rule
-
-As updated on **21/3/2026**, the official submission requires only:
+The final output only needs:
 
 ```text
 id,votes
 ```
 
-Do not submit extra metadata columns from `sample_labels` or the public reference template. Rows should follow the template order from top to bottom. The official key is `id`; party names are useful for alignment but are not part of the final required output.
+Extra metadata columns from the public reference files are useful for debugging and alignment, but the final output should be ordered by the template rows and keyed by `id`.
+
+---
+
+## Practical Tricks
+
+- **Separate OCR from vote extraction**
+  - First ask the Vision LLM to read each page into structured JSON.
+  - Then run a document-level extraction pass using the merged OCR text and expected template rows.
+
+- **Use JSON-only prompts**
+  - The notebook asks the model to return a strict JSON object.
+  - This makes downstream parsing much easier than parsing free-form OCR text.
+
+- **Keep page-level raw outputs**
+  - Every page OCR response is saved under `raw_outputs/`.
+  - This makes debugging and rerunning only failed documents much faster.
+
+- **Map by row number first**
+  - Vote tables usually preserve row numbers more reliably than party names.
+  - Party-name normalization is still useful as a fallback when row alignment is noisy.
+
+- **Normalize numbers as the final gate**
+  - Convert Thai digits to Arabic digits.
+  - Remove commas, spaces, parentheses, and non-numeric text.
+  - Make every final vote value digit-only before writing the CSV.
+
+- **Checkpoint every document**
+  - The run can be resumed after API errors, Colab disconnects, or rate limits.
+  - Selected documents can be rerun without restarting the whole pipeline.
 
 ---
 
@@ -88,9 +124,9 @@ Do not submit extra metadata columns from `sample_labels` or the public referenc
   - Allows rerunning selected documents
   - Avoids losing progress during long API runs
 
-- **Competition export**
+- **CSV export**
   - Writes a full filled template for debugging
-  - Writes the official `id,votes` submission file
+  - Writes the final `id,votes` file
 
 ---
 
@@ -149,7 +185,7 @@ flowchart TD
 `-- OCR.ipynb
 ```
 
-The competition images and template CSV are expected to live in Google Drive, not inside this repository.
+The images and template CSV are expected to live in Google Drive, not inside this repository.
 
 ---
 
@@ -255,7 +291,7 @@ Use this to confirm that OCR, mapping, checkpointing, and CSV export are working
 checkpoint = run_pipeline()
 ```
 
-The official submission file will be written to:
+The final `id,votes` file will be written to:
 
 ```text
 submission_final.csv
@@ -273,9 +309,9 @@ submission_final.csv
 | `parsed_outputs/*.json` | Final parsed rows per document |
 | `checkpoint.json` | Resume state and processed document results |
 | `submission_filled.csv` | Debug version that keeps the full template columns |
-| `submission_final.csv` | Official format containing only `id,votes` |
+| `submission_final.csv` | Final format containing only `id,votes` |
 
-Final submission format:
+Final CSV format:
 
 ```csv
 id,votes
@@ -341,11 +377,11 @@ This hybrid approach reduces failures from OCR table misalignment, broken party 
 
 ---
 
-## Notes for Competition Use
+## Output Notes
 
-- Submit only `id,votes`.
+- Export only `id,votes`.
 - Keep row order aligned with the public template.
-- Do not rely on party names as the official submission key.
+- Do not rely on party names as the output key.
 - Convert every Thai numeral to Arabic digits.
 - Avoid submitting commas, spaces, Thai text, or units in `votes`.
 - Keep `checkpoint.json` so long runs can resume safely.
